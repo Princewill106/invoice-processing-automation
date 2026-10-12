@@ -1,0 +1,283 @@
+{
+  "name": "Invoice Processing Automation (AI Automation Projects #1)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "invoice",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e31a5a08-5bd1-5dd7-a573-2bdba91c08e6",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "1239108a-1fe9-5603-a703-bdcb401f5985"
+    },
+    {
+      "parameters": {},
+      "id": "fa448999-4961-5311-8c00-1239ddd7a243",
+      "name": "Test with sample data",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sample data from this repo. Click 'Test workflow' to run the whole flow on it.\nconst sample = [\n {\n  \"source\": \"email/inv_1042.pdf\",\n  \"text\": \"Supplier: Lagos Office Supplies Ltd\\nInvoice No: INV-1042\\nDate: 2026-10-01\\nDue: 2026-10-31\\n- A4 paper (box) 10 x 4,500 = 45,000\\n- Printer toner 2 x 38,000 = 76,000\\nSubtotal: 121,000\\nVAT 7.5%: 9,075\\nTotal: 130,075\"\n },\n {\n  \"source\": \"whatsapp/photo_0931.jpg\",\n  \"text\": \"Supplier: Eko Power Solutions\\nInvoice No: EPS-221\\nDate: 2026-10-02\\nDue: 2026-10-16\\n- Inverter servicing 1 x 60,000 = 60,000\\n- Battery replacement 2 x 85,000 = 170,000\\nSubtotal: 230,000\\nVAT 7.5%: 17,250\\nTotal: 247,250\"\n },\n {\n  \"source\": \"folder/ikeja_print_77.pdf\",\n  \"text\": \"Supplier: Ikeja Print House\\nInvoice No: IPH-077\\nDate: 2026-10-03\\nDue: 2026-10-20\\n- Flyers (1000) 3 x 25,000 = 75,000\\n- Roll-up banner 2 x 35,000 = 70,000\\nSubtotal: 145,000\\nVAT 7.5%: 10,875\\nTotal: 155,875\"\n },\n {\n  \"source\": \"email/inv_1042_resend.pdf\",\n  \"text\": \"Supplier: Lagos Office Supplies Ltd\\nInvoice No: INV-1042\\nDate: 2026-10-01\\nDue: 2026-10-31\\n- A4 paper (box) 10 x 4,500 = 45,000\\n- Printer toner 2 x 38,000 = 76,000\\nSubtotal: 121,000\\nVAT 7.5%: 9,075\\nTotal: 130,075\"\n },\n {\n  \"source\": \"whatsapp/photo_0950.jpg\",\n  \"text\": \"Supplier: QuickFix Generators\\nInvoice No: QF-9\\nDate: 2026-10-04\\nDue: 2026-10-11\\n- Generator repair 1 x 85,000 = 85,000\\nSubtotal: 85,000\\nVAT 7.5%: 6,375\\nTotal: 91,375\"\n },\n {\n  \"source\": \"email/apapa_556.pdf\",\n  \"text\": \"Supplier: Apapa Logistics Co\\nInvoice No: APL-556\\nDate: 2026-10-05\\nDue: 2026-11-04\\n- Container haulage 2 x 450,000 = 900,000\\n- Port handling 1 x 120,000 = 120,000\\nSubtotal: 1,020,000\\nVAT 7.5%: 76,500\\nTotal: 1,069,500\"\n }\n];\nreturn sample.map(json => ({ json }));"
+      },
+      "id": "b8e9ae59-db35-51ba-a206-d1f862caa63f",
+      "name": "Sample data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        260
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Invoice Processing Automation: core logic (ported from main.py)\nconst KNOWN_SUPPLIERS = [\n \"Lagos Office Supplies Ltd\",\n \"Eko Power Solutions\",\n \"Ikeja Print House\",\n \"Apapa Logistics Co\"\n];\n// ---- input normaliser (works for Webhook, Form, WhatsApp, Gmail, Sheets and sample data)\nconst input = $input.all().flatMap(i => {\n  const j = i.json || {};\n  if (j.messages && Array.isArray(j.messages)) {           // WhatsApp Trigger\n    return j.messages.filter(m => m.text).map(m => ({ from: '+' + m.from, text: m.text.body }));\n  }\n  if (j.Subject !== undefined || j.From !== undefined) {     // Gmail Trigger (simple)\n    return [{ from: (j.From || '').replace(/.*<|>.*/g, ''), subject: j.Subject || '', body: j.snippet || j.text || '' }];\n  }\n  const b = (j.body !== undefined && j.headers !== undefined) ? j.body : j;   // Webhook wraps payload in body\n  if (Array.isArray(b)) return b;\n  if (b && Array.isArray(b.items)) return b.items;\n  return [b];\n});\n\nconst MONEY = '([0-9][0-9,]*\\\\.?[0-9]*)';\nconst num = s => Number(String(s).replace(/,/g, ''));\nfunction extract(text) {\n  const find = re => { const m = text.match(re); return m ? m[1].trim() : null; };\n  const items = []; let m;\n  const re = new RegExp('^\\\\s*-\\\\s*(.+?)\\\\s+(\\\\d+)\\\\s*x\\\\s*' + MONEY + '\\\\s*=\\\\s*' + MONEY, 'gm');\n  while ((m = re.exec(text))) items.push({ description: m[1].trim(), qty: +m[2], unit_price: num(m[3]), amount: num(m[4]) });\n  const sub = find(new RegExp('^Subtotal:?\\\\s*' + MONEY, 'mi')), vat = find(new RegExp('^VAT.*?:\\\\s*' + MONEY, 'mi')),\n        tot = find(new RegExp('^Total:?\\\\s*' + MONEY, 'mi'));\n  return { supplier: find(/^Supplier:?\\s*(.+)$/mi), invoice_number: find(/^Invoice\\s*(?:No|Number|#)\\.?:?\\s*(\\S+)/mi),\n           invoice_date: find(/^Date:?\\s*(.+)$/mi), due_date: find(/^Due:?\\s*(.+)$/mi), line_items: items,\n           subtotal: sub ? num(sub) : null, vat: vat ? num(vat) : 0, total: tot ? num(tot) : null };\n}\nconst r2 = x => Math.round(x * 100) / 100;\nconst seen = new Set(), out = [];\nfor (const doc of input) {\n  const inv = extract(doc.text || ''), reasons = [];\n  for (const f of ['supplier', 'invoice_number', 'total']) if (!inv[f]) reasons.push('missing ' + f);\n  for (const i of inv.line_items) if (r2(i.qty * i.unit_price) !== r2(i.amount)) reasons.push(`line '${i.description}' does not add up`);\n  const itemsSum = r2(inv.line_items.reduce((s, i) => s + i.amount, 0));\n  if (inv.subtotal !== null && itemsSum !== r2(inv.subtotal)) reasons.push(`line items add to ${itemsSum} but subtotal says ${inv.subtotal}`);\n  if (inv.subtotal !== null && inv.total !== null && r2(inv.subtotal + inv.vat) !== r2(inv.total))\n    reasons.push(`subtotal + VAT = ${r2(inv.subtotal + inv.vat)} but total says ${inv.total}`);\n  if (inv.supplier && !KNOWN_SUPPLIERS.includes(inv.supplier)) reasons.push(`unknown supplier '${inv.supplier}'`);\n  const key = inv.supplier + '|' + inv.invoice_number;\n  if (seen.has(key)) reasons.push('duplicate of invoice ' + inv.invoice_number);\n  seen.add(key);\n  out.push({ route: reasons.length ? 'review' : 'post', source: doc.source, supplier: inv.supplier,\n             invoice_number: inv.invoice_number, invoice_date: inv.invoice_date, due_date: inv.due_date,\n             subtotal: inv.subtotal, vat: inv.vat, total: inv.total, reasons: reasons.join('; ') });\n}\nreturn out.map(json => ({ json }));\n"
+      },
+      "id": "a7ca102c-3ba3-5b81-a1cb-a07d22a94757",
+      "name": "Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "b1fa5b48-8b3e-58f9-9ea1-1e4229dfb82b",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        -120
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "30681c7e-30b1-5fe1-9e4a-f00a449be4bd",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "post",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "post"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4a6b9cb9-1d17-5a94-a9bb-fae94c0f6568",
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "review",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "review"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d2e9b4a7-d56c-5c3e-ae50-5a2898f5b51c",
+      "name": "Route",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        720,
+        120
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "",
+          "mode": "list"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "d6930094-a944-5fdb-8a86-2095b2684189",
+      "name": "Append to 'Posted invoices' sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        980,
+        30
+      ]
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#finance",
+          "mode": "name"
+        },
+        "text": "=Invoice {{ $json.invoice_number }} from {{ $json.supplier }} needs review: {{ $json.reasons }} (source: {{ $json.source }})",
+        "otherOptions": {}
+      },
+      "id": "e892285b-79eb-5f86-91c1-5058fadbe85c",
+      "name": "Send to finance review (Slack)",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.2,
+      "position": [
+        980,
+        210
+      ],
+      "webhookId": "e892285b-79eb-5f86-91c1-5058fadbe85c"
+    },
+    {
+      "parameters": {
+        "content": "## Invoice Processing Automation\nTurn invoice text from email, WhatsApp photos or folder drops into checked, ready-to-post accounting entries.\n\nPOST invoice text (OCR output from email, WhatsApp photos or a folder watcher) as `{source, text}` or a list. Each invoice is extracted, its arithmetic checked, duplicates and unknown suppliers flagged. Clean invoices go to a Google Sheet; the rest go to Slack with the reason.\n\n**Try it:** click *Test workflow* to run on the sample data. Then connect your credentials on the output nodes and activate.\n\nCode and docs: github.com/Princewill106/invoice-processing-automation",
+        "height": 340,
+        "width": 420,
+        "color": 5
+      },
+      "id": "fe6569b8-d117-52db-99da-462c73d7ff75",
+      "name": "About this workflow",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -40,
+        -460
+      ]
+    }
+  ],
+  "connections": {
+    "Test with sample data": {
+      "main": [
+        [
+          {
+            "node": "Sample data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sample data": {
+      "main": [
+        [
+          {
+            "node": "Logic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Logic": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route": {
+      "main": [
+        [
+          {
+            "node": "Append to 'Posted invoices' sheet",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send to finance review (Slack)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

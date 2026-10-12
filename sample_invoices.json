@@ -1,0 +1,8 @@
+[
+ {"source": "email/inv_1042.pdf", "text": "Supplier: Lagos Office Supplies Ltd\nInvoice No: INV-1042\nDate: 2026-10-01\nDue: 2026-10-31\n- A4 paper (box) 10 x 4,500 = 45,000\n- Printer toner 2 x 38,000 = 76,000\nSubtotal: 121,000\nVAT 7.5%: 9,075\nTotal: 130,075"},
+ {"source": "whatsapp/photo_0931.jpg", "text": "Supplier: Eko Power Solutions\nInvoice No: EPS-221\nDate: 2026-10-02\nDue: 2026-10-16\n- Inverter servicing 1 x 60,000 = 60,000\n- Battery replacement 2 x 85,000 = 170,000\nSubtotal: 230,000\nVAT 7.5%: 17,250\nTotal: 247,250"},
+ {"source": "folder/ikeja_print_77.pdf", "text": "Supplier: Ikeja Print House\nInvoice No: IPH-077\nDate: 2026-10-03\nDue: 2026-10-20\n- Flyers (1000) 3 x 25,000 = 75,000\n- Roll-up banner 2 x 35,000 = 70,000\nSubtotal: 145,000\nVAT 7.5%: 10,875\nTotal: 155,875"},
+ {"source": "email/inv_1042_resend.pdf", "text": "Supplier: Lagos Office Supplies Ltd\nInvoice No: INV-1042\nDate: 2026-10-01\nDue: 2026-10-31\n- A4 paper (box) 10 x 4,500 = 45,000\n- Printer toner 2 x 38,000 = 76,000\nSubtotal: 121,000\nVAT 7.5%: 9,075\nTotal: 130,075"},
+ {"source": "whatsapp/photo_0950.jpg", "text": "Supplier: QuickFix Generators\nInvoice No: QF-9\nDate: 2026-10-04\nDue: 2026-10-11\n- Generator repair 1 x 85,000 = 85,000\nSubtotal: 85,000\nVAT 7.5%: 6,375\nTotal: 91,375"},
+ {"source": "email/apapa_556.pdf", "text": "Supplier: Apapa Logistics Co\nInvoice No: APL-556\nDate: 2026-10-05\nDue: 2026-11-04\n- Container haulage 2 x 450,000 = 900,000\n- Port handling 1 x 120,000 = 120,000\nSubtotal: 1,020,000\nVAT 7.5%: 76,500\nTotal: 1,069,500"}
+]
